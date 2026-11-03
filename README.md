@@ -1,67 +1,112 @@
-# Synergy Pick
+# Synergy Pick — 롤 실시간 챔피언 추천
 
-League of Legends champion recommendation app with a read-only local champion-select connection.
+리그 오브 레전드의 아군·상대 조합을 바탕으로 챔피언을 추천하는 프로젝트입니다. **16,000경기의 데이터**를 활용한 모델과, 실행 중인 롤 클라이언트의 확정 밴픽을 읽는 실시간 연결 기능을 포함합니다.
 
-## Run on Windows
+## 주요 기능
 
-1. Install Python 3.10 or newer.
-2. Download or clone this repository.
-3. Double-click `START_WINDOWS.cmd`.
-4. Open http://127.0.0.1:8765 and enable the live connection while the League client is running.
+- 아군·상대 챔피언 조합을 반영한 추천
+- 패치·티어·포지션별 필터
+- 확정된 픽과 밴을 읽어 화면에 반영하는 LCU 연결
+- 수동 조합 입력 및 실시간 연결 없이 추천 확인
+- 데이터 수집·모델 학습·웹 실행 코드 제공
 
-Alternatively:
+실시간 연결은 읽기 전용이며, 자동으로 챔피언을 선택하거나 밴하지 않습니다.
+
+## 실행 방법
+
+Python 3.10 이상이 필요합니다. 웹 앱 실행에는 추가 패키지 설치나 Riot API 키가 필요하지 않습니다.
+
+1. 저장소를 다운로드하거나 복제합니다.
+2. `START_WINDOWS.cmd`를 더블 클릭합니다.
+3. 브라우저에서 http://127.0.0.1:8765 에 접속합니다.
+4. 롤 클라이언트를 실행하고 웹 화면에서 실시간 연결을 켭니다.
+
+터미널에서도 실행할 수 있습니다.
 
 ```powershell
 py -3 serve.py --open-browser
 ```
 
-For a custom League installation:
+롤 설치 경로를 자동으로 찾지 못하면 lockfile 경로를 직접 지정합니다.
 
 ```powershell
 py -3 serve.py --open-browser --lockfile "D:/Riot Games/League of Legends/lockfile"
 ```
 
-## Features
+포트가 사용 중이면 `--port 8766`을 추가하세요. 실시간 연결은 롤 클라이언트가 설치된 PC에서 실행해야 합니다. 자세한 확인 방법은 [DESKTOP_TEST.md](DESKTOP_TEST.md)를 참고하세요.
 
-- Recommendations based on allied and opposing champion selections.
-- Patch, tier, and role filters.
-- Read-only LCU bridge for confirmed picks and bans; no automated picks or bans.
-- Bundled model, validation report, champion data, and frontend assets.
+## 데이터 수집
 
-## Project files
+Python 표준 라이브러리로 Riot API를 호출해 한국 서버 솔로랭크 경기를 수집하도록 구성했습니다.
 
-- `serve.py`: loopback HTTP server.
-- `lcu_bridge.py`: local League client connection.
-- `dist/`: runnable frontend and model files.
-- `certs/riotgames.pem`: Riot CA certificate for the local client.
-- `DESKTOP_TEST.md`: detailed desktop testing guide.
+| 코드 | 역할 |
+|---|---|
+| `collector.py` | 시작 계정의 경기 목록과 상세 정보 수집 |
+| `collect_bulk.py` | 수집한 경기의 참여자를 따라 다른 경기로 수집 확대 |
+| `collect_stratified.py` | 패치와 여러 티어를 고려한 추가 수집 |
 
-Predictions are experimental estimates. See `dist/model_report.json` for validation results.
+솔로랭크 경기 중 5분 미만 경기, 조기 항복 표시가 있는 경기, 팀별 5개 포지션을 확인할 수 없는 경기는 제외합니다.
 
-Champion names and images belong to Riot Games. This project is not endorsed by Riot Games. Never upload your League client lockfile or credentials.
+| 데이터 파일 | 고유 경기 수 | 팀 단위 행 수 |
+|---|---:|---:|
+| `data/teams.csv` | 10,000 | 20,000 |
+| `data/patch_16_20_platinum_plus/teams.csv` | 6,000 | 12,000 |
+| 합계 | **16,000** | **32,000** |
 
-## Data collection and training
+한 경기를 양 팀 관점에서 각각 저장하므로 경기당 2행입니다. 두 CSV 사이에 중복 경기 ID는 없습니다.
 
-The repository includes 16,000 unique matches: 10,000 in `data/teams.csv` and 6,000 additional matches in `data/patch_16_20_platinum_plus/teams.csv`. Each match has two team rows. The additional sample uses patch 16.20 and requires all ten participants to be Platinum+ at collection time, not necessarily at match time.
+추가 6,000경기는 16.20 패치에서 수집했으며, 참여자 10명 모두 **수집 시점의 티어가 플래티넘 이상**인 경기를 채택합니다. 경기 당시의 티어를 의미하지는 않습니다. 여러 티어에서 수집했지만 전체 이용자를 대표하는 무작위 표본은 아닙니다.
 
-- `collector.py`: collect a seed account's solo ranked games through Riot API.
-- `collect_bulk.py`: expand collection through match participants.
-- `collect_stratified.py`: collect a patch-specific sample from multiple rank tiers.
-- `train.py`: train patch-specific logistic regression models and export `dist/model.json`.
+새로 수집하려면 본인의 Riot API 키를 별도 로컬 파일에 저장하고, 새로운 데이터 폴더를 지정하세요.
 
-Install training dependencies and retrain from the included CSV files:
+```powershell
+python collector.py --riot-id "divert#KR1" --count 20 --key-file secrets/riot.key --data-dir data/new_sample
+```
+
+원본 API 응답과 수집 재개용 상태 파일은 포함하지 않았습니다. 기존 CSV만으로 이전 수집 작업을 그대로 재개할 수 없으므로, 새 데이터는 별도 폴더에 저장하고 기존 데이터와의 중복을 확인해야 합니다.
+
+## 모델 학습
+
+패치별 정규화 로지스틱 회귀 모델을 사용합니다. 챔피언·포지션, 아군 조합, 상대 조합, 아군과 상대의 조합 관계, 제공된 티어 정보를 특성으로 구성합니다. 일부 챔피언만 선택된 상황도 학습하도록 입력 일부를 가린 예시를 만듭니다.
+
+- 경기 수가 300건 이상인 패치만 모델 생성
+- 경기 시작 시간순으로 학습 60%·확률 보정 20%·평가 20% 분리
+- 같은 경기의 양 팀 데이터는 같은 구간에 배치
+- 평가 후 해당 패치 전체 데이터로 다시 학습하여 배포용 모델 생성
 
 ```powershell
 python -m pip install -r requirements.txt
 python train.py
 ```
 
-To collect a separate new sample, provide your own Riot API key in an ignored local file:
+학습 결과는 `dist/model.json`, 평가 결과는 `dist/model_report.json`에 저장됩니다. 재학습하면 기존 모델 파일을 갱신합니다.
+
+**표시되는 확률은 실험용 추정치입니다.** 실제 승률을 보장하지 않으며, 표본 편향과 적은 패치별 데이터의 영향을 받습니다. 패치별 AUC와 로그 손실 등은 평가 결과 파일에서 확인할 수 있습니다.
+
+## 프로젝트 구성
+
+| 경로 | 설명 |
+|---|---|
+| `serve.py` | 로컬 웹 서버와 밴픽 API |
+| `lcu_bridge.py` | 롤 클라이언트의 확정 픽·밴 읽기 |
+| `dist/` | 웹 화면, 추천 계산 코드, 모델, 챔피언 이미지 |
+| `collector.py`, `collect_bulk.py`, `collect_stratified.py` | 경기 데이터 수집 |
+| `data/` | 학습용 CSV와 수집 결과 요약 |
+| `train.py` | 모델 학습·평가·내보내기 |
+| `apply_when_ready.py` | 추가 수집 완료 확인 후 학습 실행 |
+| `test_live.py` | 밴픽 정보 처리와 로컬 API 테스트 |
+| `certs/riotgames.pem` | 로컬 클라이언트 연결용 Riot CA 인증서 |
+
+## 테스트
 
 ```powershell
-python collector.py --riot-id "divert#KR1" --count 20 --key-file secrets/riot.key --data-dir data/new_sample
+python -B test_live.py
 ```
 
-Use a separate data directory: raw API responses and collection checkpoints from the original run are not included, so the included CSV files alone cannot resume that collection safely. Do not commit API keys, raw responses, rank caches, or client lockfiles.
+실제 롤 클라이언트와의 연결은 별도로 확인해야 합니다.
 
-The application and LCU connection files use the current synergy-pick version.
+## 보안 및 출처
+
+API 키, 클라이언트 lockfile, 원본 API 응답, 랭크 캐시 등은 업로드 제외 대상으로 설정했습니다. 키와 인증 정보는 저장소에 올리지 마세요.
+
+챔피언 이름과 이미지의 권리는 Riot Games에 있습니다. 이 프로젝트는 Riot Games의 공식 서비스가 아니며, Riot Games의 보증이나 승인을 의미하지 않습니다.

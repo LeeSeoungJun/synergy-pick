@@ -1,0 +1,58 @@
+{
+  "16.13": {
+    "matches": 76,
+    "logLoss": 0.6905,
+    "baselineLogLoss": 0.6931,
+    "auc": 0.5476,
+    "calibrationSlope": 0.4103
+  },
+  "16.14": {
+    "matches": 62,
+    "logLoss": 0.6931,
+    "baselineLogLoss": 0.6931,
+    "auc": 0.5,
+    "calibrationSlope": 0.0
+  },
+  "16.15": {
+    "matches": 70,
+    "logLoss": 0.6915,
+    "baselineLogLoss": 0.6931,
+    "auc": 0.5445,
+    "calibrationSlope": 0.1371
+  },
+  "16.16": {
+    "matches": 126,
+    "logLoss": 0.6924,
+    "baselineLogLoss": 0.6931,
+    "auc": 0.5136,
+    "calibrationSlope": 0.1324
+  },
+  "16.17": {
+    "matches": 201,
+    "logLoss": 0.6931,
+    "baselineLogLoss": 0.6931,
+    "auc": 0.5,
+    "calibrationSlope": 0.0
+  },
+  "16.18": {
+    "matches": 227,
+    "logLoss": 0.6915,
+    "baselineLogLoss": 0.6931,
+    "auc": 0.5328,
+    "calibrationSlope": 0.3094
+  },
+  "16.19": {
+    "matches": 641,
+    "logLoss": 0.6931,
+    "baselineLogLoss": 0.6931,
+    "auc": 0.5,
+    "calibrationSlope": 0.0
+  },
+  "16.20": {
+    "matches": 1515,
+    "logLoss": 0.6925,
+    "baselineLogLoss": 0.6931,
+    "auc": 0.5224,
+    "calibrationSlope": 0.1819
+  }
+}
